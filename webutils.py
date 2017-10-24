@@ -1,3 +1,16 @@
+#--------------------------------------
+"""
+Script      : webutils.py
+Desсription : Библиотека функций для web
+Author      : Gary Galler
+Copyright(C): Gary Galler, 2017.  All rights reserved
+Version     : 1.0.0.0
+Date        : 24.10.2017
+"""
+#--------------------------------------
+__version__ = '1.0.0.0'
+__date__    = '24.10.2017'
+
 import os
 import hashlib
 import re
