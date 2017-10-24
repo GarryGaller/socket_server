@@ -1,4 +1,6 @@
-﻿#https://andreymal.org/socket3/
+﻿#!/usr/bin/env python3
+
+#https://andreymal.org/socket3/
 #http://ftpn.ru/redirect-external-link/
 #http://jdevelop.info/articles/html-css-js/200-perekhod-na-druguyu-stranitsu-s-pomoshchyu-javascript
 
@@ -30,7 +32,7 @@ from subprocess import Popen
 from chardet.universaldetector import UniversalDetector
 from webutils import *
 
-if sys.version_info[:2] < (3,6):
+if os.name == "nt" and sys.version_info[:2] < (3,6):
     import win_unicode_console
     win_unicode_console.enable()
 
@@ -162,7 +164,7 @@ def render_html(root,charset=None):
    
     body = """<h1>Index of %s </h1>\n<hr>\n<ul>\n""" % root
     li = """<li><a  href="{name}" title={title}>{name}</a></li>\n"""
-    #добавляем в самый верх относительную ссылку на родительский катало
+    #добавляем в самый верх относительную ссылку на родительский каталог
     body += li.format(name="../",title="")
     
     # сортировка файлов и директорий - первыми идут каталоги
