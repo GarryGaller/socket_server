@@ -1,7 +1,7 @@
 #--------------------------------------
 """
 Script      : webutils.py
-Desсription : Библиотека функций для web
+Desсription : Библиотека вспомогательных функций для web
 Author      : Gary Galler
 Copyright(C): Gary Galler, 2017.  All rights reserved
 Version     : 1.0.0.0
