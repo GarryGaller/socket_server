@@ -8,7 +8,7 @@ Script      : socket_server.py
 Desсription : Сокет сервер для листинга директорий
 Author      : Gary Galler
 Copyright(C): Gary Galler, 2017.  All rights reserved
-Version     : 1.0.0.9
+Version     : 1.0.0.0
 Date        : 24.10.2017
 """
 #--------------------------------------
