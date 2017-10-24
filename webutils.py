@@ -1,3 +1,18 @@
+#!/usr/bin/env python3
+
+#--------------------------------------
+"""
+Script      : webutils.py
+Desсription : Библиотека функций для web
+Author      : Gary Galler
+Copyright(C): Gary Galler, 2017.  All rights reserved
+Version     : 1.0.0.0
+Date        : 24.10.2017
+"""
+#--------------------------------------
+__version__ = '1.0.0.0'
+__date__    = '24.10.2017'
+
 import os
 import hashlib
 import re
@@ -8,11 +23,13 @@ from datetime import datetime
 #---------------------------------
 # форматирвание времени в web формат
 #---------------------------------
-def time_web_format(timetuple=None):
+def time_to_rfc2616(timetuple=None):
     if timetuple is None: 
         timetuple = time.gmtime()
-    return time.strftime("%A, %d %b %Y %H:%M:%S GMT",timetuple)
+    return time.strftime("%a, %d %b %Y %H:%M:%S GMT",timetuple)
 
+def time_to_http_format(timetuple=None):
+    return time_to_rfc2616(timetuple)
 #---------------------------------
 # время последней модификации файла 
 #---------------------------------
@@ -31,8 +48,15 @@ def time_last_modified_source(filepath,utc=True):
 def is_modified_since(header_if_modified_since,filepath):
     modified_since = datetime.strptime(
                 header_if_modified_since,
-                "%A, %d %b %Y %H:%M:%S GMT")
+                "%a, %d %b %Y %H:%M:%S GMT")
     return time_last_modified_source(filepath) > modified_since
+
+#---------------------------------
+def is_not_modified_since(header_if_modified_since,filepath):
+    modified_since = datetime.strptime(
+                header_if_modified_since,
+                "%a, %d %b %Y %H:%M:%S GMT")
+    return time_last_modified_source(filepath) <= modified_since
 
 #---------------------------------
 # валидация If-None-Match
@@ -101,8 +125,8 @@ def parse_time(s):
         
     for k in delta:
         if k[0] in match:
-            delta[k]=int(match[k[0]])
-    return delta 
+            delta[k]=abs(int(match[k[0]]))
+    return delta
     
 #--------------------------------------    
 # добавление начального слеша, если отсутствует

@@ -1,4 +1,6 @@
-﻿#https://andreymal.org/socket3/
+#!/usr/bin/env python3
+
+#https://andreymal.org/socket3/
 #http://ftpn.ru/redirect-external-link/
 #http://jdevelop.info/articles/html-css-js/200-perekhod-na-druguyu-stranitsu-s-pomoshchyu-javascript
 
@@ -8,7 +10,7 @@ Script      : socket_server.py
 Desсription : Сокет сервер для листинга директорий
 Author      : Gary Galler
 Copyright(C): Gary Galler, 2017.  All rights reserved
-Version     : 1.0.0.9
+Version     : 1.0.0.0
 Date        : 24.10.2017
 """
 #--------------------------------------
@@ -28,9 +30,15 @@ from urllib.parse import quote,unquote
 from subprocess import Popen
 #для автоопределения кодировки файлов
 from chardet.universaldetector import UniversalDetector
-from webutils import *
+from webutils import (
+                    etag, 
+                    is_none_match, 
+                    is_modified_since, 
+                    get_params_from_header,
+                    time_last_modified_source,
+                    time_to_rfc2616)
 
-if sys.version_info[:2] < (3,6):
+if os.name == "nt" and sys.version_info[:2] < (3,6):
     import win_unicode_console
     win_unicode_console.enable()
 
@@ -70,6 +78,7 @@ def debug_response_headers(response):
     for name,val in response.headers:
         print(name,val,sep=': ')
 
+
 def debug_request_headers(request):
     print("-"*10)
     print("CONNECTED:",request.host)
@@ -80,7 +89,7 @@ def debug_request_headers(request):
     )
     
     for name,val in request.headers:
-        print(name,val,sep=':')
+        print(name,val,sep=': ')
 
 
 #---------------------------------
@@ -162,7 +171,7 @@ def render_html(root,charset=None):
    
     body = """<h1>Index of %s </h1>\n<hr>\n<ul>\n""" % root
     li = """<li><a  href="{name}" title={title}>{name}</a></li>\n"""
-    #добавляем в самый верх относительную ссылку на родительский катало
+    #добавляем в самый верх относительную ссылку на родительский каталог
     body += li.format(name="../",title="")
     
     # сортировка файлов и директорий - первыми идут каталоги
@@ -201,10 +210,7 @@ def send_answer(conn,
                 charset=None, 
                 data="",
                 binary=False,
-                send_headers=True,
-                headers = None,
-                extra_headers=None
-                ):
+                headers=None):
     
     if not binary and data:
         if charset is None:
@@ -212,35 +218,37 @@ def send_answer(conn,
         data = data.encode(charset)
     
     charset = '; charset=' + charset if charset else ""
-    answer = "{} {}".format(protocol, status)
-    
-    
-    if headers is None and send_headers:
-        headers = [
+    start_line = "{} {}".format(protocol, status)
+    default_headers = [
             ("Server", "simplehttp"),
-            ("Date", time.strftime("%A, %d %b %Y %H:%M:%S GMT",time.gmtime())),
+            ("Date", time_to_rfc2616()),
             ("Connection", "close"),
             ("Content-Type", typ + charset),
             ("Content-Length", len(data)),
         ]
-        if extra_headers:
-            headers.extend(extra_headers) 
-    else:
-        headers = []
     
+    _headers = []
+    if headers is None:
+        headers = []
+    elif headers == -1:
+        headers = []
+        default_headers = []
+    
+    _headers.extend(default_headers)
+    _headers.extend(headers)
     # динамически создаем простой объект для передачи данных ответа
     response = type("Response",(object,), {
         'version':protocol,
         'status':status,
-        'headers':headers
+        'headers':_headers
         }
     )
     
     debug_response_headers(response)
-    conn.send(answer.encode(DEFAULT_CHARSET) + b"\r\n") 
+    conn.send(start_line.encode(DEFAULT_CHARSET) + b"\r\n") 
     
-    if send_headers:
-        for header in headers:
+    if _headers:
+        for header in _headers:
             conn.send(": ".join(map(str,header)).encode(DEFAULT_CHARSET) + b"\r\n")     
         
     if data:
@@ -289,9 +297,10 @@ def parse_request(conn,data):
         name,value = header.split(":",1)
         headers.append((name.strip(),value.strip()))
     
+    host = dict(headers).get('Host',HOST)
     # динамически создаем простой объект для передачи данных запроса
     request = type("Request",(object,), {
-        "host": ":".join([HOST,str(PORT)]),
+        "host":host,
         'method':method,
         'address':address,
         'version':protocol,
@@ -310,7 +319,7 @@ def parse_request(conn,data):
 def route(conn,request):    
     
     charset = DEFAULT_CHARSET
-    extra_headers = []
+    headers = []
     
     filepath = os.path.normpath(
                     os.path.join(ROOT,request.address.strip('/'))
@@ -341,7 +350,7 @@ def route(conn,request):
                             typ="text/html", 
                             charset=DEFAULT_CHARSET,
                             data=answer,
-                            extra_headers=[("Cache-Control", "no-cache")]
+                            headers=[("Cache-Control", "no-cache")]
                             )
             # иначе - отображаем ресурс в браузере     
             else:
@@ -365,9 +374,18 @@ def route(conn,request):
                 if not modified:
                     # если ресурс не изменился - отправляем клиенту (браузеру) код 304,
                     # чтобы он взял закэшированный ресурс
+                    gmdate = time_to_rfc2616()
+                    timetuple = time_last_modified_source(filepath).timetuple()
+                    last_modified = time_to_rfc2616(timetuple)
+                    headers = [
+                                ("Date", gmdate),
+                                ("ETag",etag(filepath)),
+                                ("Last-Modified",last_modified)
+                            ]
                     return send_answer(conn, 
                                     status="304 Not Modified",
-                                    send_headers=False)
+                                    headers=-1
+                                    )
                 
                 # если файл текстовый - определяем кодировку для того, 
                 # чтобы браузер мог его правильно отобразить
@@ -377,7 +395,7 @@ def route(conn,request):
                 else:
                     # добавляем заголовки для показа браузером диалога сохранения файла
                     if not browser_types.match(typ):
-                        extra_headers = [
+                        headers = [
                             ('Content-Description', 'File Transfer'),
                             ('Content-Transfer-Encoding','binary'),
                             ('Content-Disposition', 'attachment;filename=%s' % quote(
@@ -389,11 +407,13 @@ def route(conn,request):
                 data,size = read_file(filepath)
                 timetuple = time_last_modified_source(filepath).timetuple()
                 #print(timetuple)
-                last_modified = time_web_format(timetuple)
-                # добавляем загловки клиентского кэширования
-                extra_headers.append(("ETag",etag(filepath)))
-                extra_headers.append(("Last-Modified",last_modified))
-                extra_headers.append(("Cache-Control", 
+                last_modified = time_to_rfc2616(timetuple)
+                # добавляем заголовки клиентского кэширования
+                headers = []
+                headers.append(("ETag",etag(filepath)))
+                headers.append(("Last-Modified",last_modified))
+                headers.append(("Cache-Control", 
+                    # "max-age=%s" % MAX_AGE))
                     "max-age=%s, must-revalidate" % MAX_AGE))
                     #"max-age=%s, must-revalidate, private, no-cache" % 600)) # c no-cache не кэширует
                 send_answer(conn, 
@@ -401,7 +421,7 @@ def route(conn,request):
                             charset=charset,
                             data=data,
                             binary=True,
-                            extra_headers=extra_headers
+                            headers=headers
                             )
         #-------------------------------------
         # если файла не существует           
@@ -440,7 +460,7 @@ def serve_forever(server,port,charset):
             
             except socket.error: # данных нет
                continue
-                    
+            
             except KeyboardInterrupt:
                 print("Connected: Exit by Ctrl+C")
                 if conn:
@@ -485,7 +505,8 @@ def serve_forever(server,port,charset):
 #--------------------------------------------------
 if __name__ == "__main__":
     CASCHE_DIRS = {}
-    HOST,PORT = "localhost",8080
+    HOST = SERVER,PORT = "localhost",8080
+    HOST = ":".join(map(str,HOST))
     # корневая директория, которая будет доступна по адресу http://localhost:8080
     ROOT = os.path.dirname(__file__)
     DEFAULT_CHARSET = "utf-8"
@@ -497,7 +518,7 @@ if __name__ == "__main__":
     # добавляем и переопределяем некоторые mime типы
     mimetypes.types_map.update(
         {
-        ""     :'application/octet-stream', # файлам без расширения дадим дефолтный тип неизвестного двичного содержимого 
+        ""     :'application/octet-stream', # файлам без расширения дадим дефолтный тип неизвестного двоичного содержимого 
         ".json":"application/json", # отсутствует
         ".vbs" :"text/plain",       # отсутствует, определяем для открытия в браузере
         ".csv" :"text/plain",       # переопределяем для открытия в браузере
@@ -524,6 +545,6 @@ if __name__ == "__main__":
     
     # xlsx:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
     # exe: application/x-msdownload
-    print('START LISTEN SERVER:{}:{}'.format(PORT,HOST))
-    serve_forever(HOST,PORT,DEFAULT_CHARSET)
+    print('START LISTEN SERVER:{}'.format(HOST))
+    serve_forever(SERVER,PORT,DEFAULT_CHARSET)
  
