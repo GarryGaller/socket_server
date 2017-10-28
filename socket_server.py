@@ -290,9 +290,10 @@ def parse_request(conn,data):
         name,value = header.split(":",1)
         headers.append((name.strip(),value.strip()))
     
+    host = dict(headers).get('Host',HOST)
     # динамически создаем простой объект для передачи данных запроса
     request = type("Request",(object,), {
-        "host": ":".join([HOST,str(PORT)]),
+        "host":host,
         'method':method,
         'address':address,
         'version':protocol,
@@ -486,7 +487,8 @@ def serve_forever(server,port,charset):
 #--------------------------------------------------
 if __name__ == "__main__":
     CASCHE_DIRS = {}
-    HOST,PORT = "localhost",8080
+    HOST = SERVER,PORT = "localhost",8080
+    HOST = ":".join(map(str,HOST))
     # корневая директория, которая будет доступна по адресу http://localhost:8080
     ROOT = os.path.dirname(__file__)
     DEFAULT_CHARSET = "utf-8"
@@ -525,6 +527,6 @@ if __name__ == "__main__":
     
     # xlsx:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
     # exe: application/x-msdownload
-    print('START LISTEN SERVER:{}:{}'.format(PORT,HOST))
-    serve_forever(HOST,PORT,DEFAULT_CHARSET)
+    print('START LISTEN SERVER:{}'.format(HOST))
+    serve_forever(SERVER,PORT,DEFAULT_CHARSET)
  
