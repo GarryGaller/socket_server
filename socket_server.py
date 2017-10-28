@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 
 #https://andreymal.org/socket3/
 #http://ftpn.ru/redirect-external-link/
@@ -214,8 +214,7 @@ def send_answer(conn,
         data = data.encode(charset)
     
     charset = '; charset=' + charset if charset else ""
-    answer = "{} {}".format(protocol, status)
-    
+    start_line = "{} {}".format(protocol, status)
     
     if headers is None and send_headers:
         headers = [
@@ -239,7 +238,7 @@ def send_answer(conn,
     )
     
     debug_response_headers(response)
-    conn.send(answer.encode(DEFAULT_CHARSET) + b"\r\n") 
+    conn.send(start_line.encode(DEFAULT_CHARSET) + b"\r\n") 
     
     if send_headers:
         for header in headers:

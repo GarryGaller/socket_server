@@ -116,8 +116,8 @@ def parse_time(s):
         
     for k in delta:
         if k[0] in match:
-            delta[k]=int(match[k[0]])
-    return delta 
+            delta[k]=abs(int(match[k[0]]))
+    return delta
     
 #--------------------------------------    
 # добавление начального слеша, если отсутствует
