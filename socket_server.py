@@ -30,7 +30,12 @@ from urllib.parse import quote,unquote
 from subprocess import Popen
 #для автоопределения кодировки файлов
 from chardet.universaldetector import UniversalDetector
-from webutils import *
+from webutils import (
+                    etag, 
+                    is_none_match, 
+                    is_modified_since, 
+                    get_params_from_header,
+                    time_to_rfc2616)
 
 if os.name == "nt" and sys.version_info[:2] < (3,6):
     import win_unicode_console
@@ -391,8 +396,8 @@ def route(conn,request):
                 data,size = read_file(filepath)
                 timetuple = time_last_modified_source(filepath).timetuple()
                 #print(timetuple)
-                last_modified = time_web_format(timetuple)
-                # добавляем загловки клиентского кэширования
+                last_modified = time_to_rfc2616(timetuple)
+                # добавляем заголовки клиентского кэширования
                 extra_headers.append(("ETag",etag(filepath)))
                 extra_headers.append(("Last-Modified",last_modified))
                 extra_headers.append(("Cache-Control", 

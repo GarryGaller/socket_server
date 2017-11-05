@@ -23,11 +23,13 @@ from datetime import datetime
 #---------------------------------
 # форматирвание времени в web формат
 #---------------------------------
-def time_web_format(timetuple=None):
+def time_to_rfc2616(timetuple=None):
     if timetuple is None: 
         timetuple = time.gmtime()
     return time.strftime("%A, %d %b %Y %H:%M:%S GMT",timetuple)
 
+def time_to_http_format(timetuple=None):
+    return time_to_rfc2616(timetuple)
 #---------------------------------
 # время последней модификации файла 
 #---------------------------------
