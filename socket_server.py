@@ -35,6 +35,7 @@ from webutils import (
                     is_none_match, 
                     is_modified_since, 
                     get_params_from_header,
+                    time_last_modified_source,
                     time_to_rfc2616)
 
 if os.name == "nt" and sys.version_info[:2] < (3,6):
