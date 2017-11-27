@@ -52,6 +52,13 @@ def is_modified_since(header_if_modified_since,filepath):
     return time_last_modified_source(filepath) > modified_since
 
 #---------------------------------
+def is_not_modified_since(header_if_modified_since,filepath):
+    modified_since = datetime.strptime(
+                header_if_modified_since,
+                "%A, %d %b %Y %H:%M:%S GMT")
+    return time_last_modified_source(filepath) <= modified_since
+
+#---------------------------------
 # валидация If-None-Match
 #---------------------------------
 def is_none_match(header_if_none_match,filepath):

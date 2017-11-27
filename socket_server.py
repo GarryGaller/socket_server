@@ -78,6 +78,7 @@ def debug_response_headers(response):
     for name,val in response.headers:
         print(name,val,sep=': ')
 
+
 def debug_request_headers(request):
     print("-"*10)
     print("CONNECTED:",request.host)
@@ -209,10 +210,7 @@ def send_answer(conn,
                 charset=None, 
                 data="",
                 binary=False,
-                send_headers=True,
-                headers = None,
-                extra_headers=None
-                ):
+                headers=None):
     
     if not binary and data:
         if charset is None:
@@ -221,33 +219,35 @@ def send_answer(conn,
     
     charset = '; charset=' + charset if charset else ""
     start_line = "{} {}".format(protocol, status)
-    
-    if headers is None and send_headers:
-        headers = [
+    default_headers = [
             ("Server", "simplehttp"),
             ("Date", time.strftime("%A, %d %b %Y %H:%M:%S GMT",time.gmtime())),
             ("Connection", "close"),
             ("Content-Type", typ + charset),
             ("Content-Length", len(data)),
         ]
-        if extra_headers:
-            headers.extend(extra_headers) 
-    else:
-        headers = []
     
+    _headers = []
+    if headers is None:
+        headers = []
+    elif headers == -1:
+        default_headers = []
+    
+    _headers.extend(default_headers)
+    _headers.extend(headers)
     # динамически создаем простой объект для передачи данных ответа
     response = type("Response",(object,), {
         'version':protocol,
         'status':status,
-        'headers':headers
+        'headers':_headers
         }
     )
     
     debug_response_headers(response)
     conn.send(start_line.encode(DEFAULT_CHARSET) + b"\r\n") 
     
-    if send_headers:
-        for header in headers:
+    if _headers:
+        for header in _headers:
             conn.send(": ".join(map(str,header)).encode(DEFAULT_CHARSET) + b"\r\n")     
         
     if data:
@@ -318,7 +318,7 @@ def parse_request(conn,data):
 def route(conn,request):    
     
     charset = DEFAULT_CHARSET
-    extra_headers = []
+    headers = []
     
     filepath = os.path.normpath(
                     os.path.join(ROOT,request.address.strip('/'))
@@ -349,7 +349,7 @@ def route(conn,request):
                             typ="text/html", 
                             charset=DEFAULT_CHARSET,
                             data=answer,
-                            extra_headers=[("Cache-Control", "no-cache")]
+                            headers=[("Cache-Control", "no-cache")]
                             )
             # иначе - отображаем ресурс в браузере     
             else:
@@ -373,9 +373,18 @@ def route(conn,request):
                 if not modified:
                     # если ресурс не изменился - отправляем клиенту (браузеру) код 304,
                     # чтобы он взял закэшированный ресурс
+                    gmdate = time.strftime("%A, %d %b %Y %H:%M:%S GMT",time.gmtime())
+                    timetuple = time_last_modified_source(filepath).timetuple()
+                    last_modified = time_to_rfc2616(timetuple)
+                    headers = [
+                                ("Date", gmdate),
+                                ("ETag",etag(filepath)),
+                                ("Last-Modified",last_modified)
+                            ]
                     return send_answer(conn, 
                                     status="304 Not Modified",
-                                    send_headers=False)
+                                    headers=headers
+                                    )
                 
                 # если файл текстовый - определяем кодировку для того, 
                 # чтобы браузер мог его правильно отобразить
@@ -385,7 +394,7 @@ def route(conn,request):
                 else:
                     # добавляем заголовки для показа браузером диалога сохранения файла
                     if not browser_types.match(typ):
-                        extra_headers = [
+                        headers = [
                             ('Content-Description', 'File Transfer'),
                             ('Content-Transfer-Encoding','binary'),
                             ('Content-Disposition', 'attachment;filename=%s' % quote(
@@ -399,9 +408,11 @@ def route(conn,request):
                 #print(timetuple)
                 last_modified = time_to_rfc2616(timetuple)
                 # добавляем заголовки клиентского кэширования
-                extra_headers.append(("ETag",etag(filepath)))
-                extra_headers.append(("Last-Modified",last_modified))
-                extra_headers.append(("Cache-Control", 
+                headers = []
+                headers.append(("ETag",etag(filepath)))
+                headers.append(("Last-Modified",last_modified))
+                headers.append(("Cache-Control", 
+                    # "max-age=%s" % MAX_AGE))
                     "max-age=%s, must-revalidate" % MAX_AGE))
                     #"max-age=%s, must-revalidate, private, no-cache" % 600)) # c no-cache не кэширует
                 send_answer(conn, 
@@ -409,7 +420,7 @@ def route(conn,request):
                             charset=charset,
                             data=data,
                             binary=True,
-                            extra_headers=extra_headers
+                            headers=headers
                             )
         #-------------------------------------
         # если файла не существует           
