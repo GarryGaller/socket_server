@@ -231,6 +231,7 @@ def send_answer(conn,
     if headers is None:
         headers = []
     elif headers == -1:
+        headers = []
         default_headers = []
     
     _headers.extend(default_headers)
@@ -383,7 +384,7 @@ def route(conn,request):
                             ]
                     return send_answer(conn, 
                                     status="304 Not Modified",
-                                    headers=headers
+                                    headers=-1
                                     )
                 
                 # если файл текстовый - определяем кодировку для того, 
