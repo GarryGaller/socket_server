@@ -221,7 +221,7 @@ def send_answer(conn,
     start_line = "{} {}".format(protocol, status)
     default_headers = [
             ("Server", "simplehttp"),
-            ("Date", time.strftime("%A, %d %b %Y %H:%M:%S GMT",time.gmtime())),
+            ("Date", time_to_rfc2616()),
             ("Connection", "close"),
             ("Content-Type", typ + charset),
             ("Content-Length", len(data)),
@@ -374,7 +374,7 @@ def route(conn,request):
                 if not modified:
                     # если ресурс не изменился - отправляем клиенту (браузеру) код 304,
                     # чтобы он взял закэшированный ресурс
-                    gmdate = time.strftime("%A, %d %b %Y %H:%M:%S GMT",time.gmtime())
+                    gmdate = time_to_rfc2616()
                     timetuple = time_last_modified_source(filepath).timetuple()
                     last_modified = time_to_rfc2616(timetuple)
                     headers = [
@@ -460,7 +460,7 @@ def serve_forever(server,port,charset):
             
             except socket.error: # данных нет
                continue
-                    
+            
             except KeyboardInterrupt:
                 print("Connected: Exit by Ctrl+C")
                 if conn:

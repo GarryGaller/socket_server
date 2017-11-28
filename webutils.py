@@ -26,7 +26,7 @@ from datetime import datetime
 def time_to_rfc2616(timetuple=None):
     if timetuple is None: 
         timetuple = time.gmtime()
-    return time.strftime("%A, %d %b %Y %H:%M:%S GMT",timetuple)
+    return time.strftime("%a, %d %b %Y %H:%M:%S GMT",timetuple)
 
 def time_to_http_format(timetuple=None):
     return time_to_rfc2616(timetuple)
@@ -48,14 +48,14 @@ def time_last_modified_source(filepath,utc=True):
 def is_modified_since(header_if_modified_since,filepath):
     modified_since = datetime.strptime(
                 header_if_modified_since,
-                "%A, %d %b %Y %H:%M:%S GMT")
+                "%a, %d %b %Y %H:%M:%S GMT")
     return time_last_modified_source(filepath) > modified_since
 
 #---------------------------------
 def is_not_modified_since(header_if_modified_since,filepath):
     modified_since = datetime.strptime(
                 header_if_modified_since,
-                "%A, %d %b %Y %H:%M:%S GMT")
+                "%a, %d %b %Y %H:%M:%S GMT")
     return time_last_modified_source(filepath) <= modified_since
 
 #---------------------------------
