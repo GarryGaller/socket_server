@@ -570,7 +570,11 @@ def serve_forever(server,port,charset):
 #--------------------------------------------------
 if __name__ == "__main__":
     CASCHE_DIRS = {}
+<<<<<<< HEAD
     HOST = SERVER,PORT = "0.0.0.0",8080
+=======
+    HOST = SERVER,PORT = "localhost",8080
+>>>>>>> 619bc5a455d6166bfc065437d4104383125a73a1
     HOST = ":".join(map(str,HOST))
     # корневая директория, которая будет доступна по адресу http://localhost:8080
     ROOT = os.path.dirname(__file__)
