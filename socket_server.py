@@ -24,6 +24,8 @@ import socket
 import mimetypes,cgi
 import re
 import hashlib
+import queue
+import threading
 from datetime import datetime
 from string import Template
 from urllib.parse import quote,unquote
@@ -438,8 +440,67 @@ def route(conn,request):
                         typ="text/html",
                         status="404 Not Found",
                         charset=charset,
-                        data=answer)   
-            
+                        data=answer) 
+                        
+ 
+#---------------------------------
+# многопоточная обработка
+#---------------------------------  
+
+class Worker(threading.Thread):
+    
+    def __init__(self, queue):
+        """Инициализация потока"""
+        super().__init__()
+        self.queue = queue
+     
+    def run(self):
+        """Запуск потока"""
+        while True:
+            try:
+                item = self.queue.get()
+                if item is None:
+                    break
+                conn, addr = item
+                #print(conn, addr)
+                self.work(conn, addr)
+            except Exception as err:
+                print(err)
+            else:
+                if conn:
+                    conn.close() 
+            finally:
+                self.queue.task_done() 
+     
+    def work(self, conn, addr):
+        data = read_data(conn, addr)
+        # данные пришли - обрабатываем
+        if data:
+            parse_request(conn,data) 
+    
+    
+def create_workers(max_workers=10):
+    global q, threads
+    q = queue.Queue()
+    threads = []
+    
+    for i in range(max_workers):
+        t = Worker(q)
+        t.start()
+        threads.append(t)
+
+def stop_workers(max_workers):
+    # останавливаем воркеры
+    for _ in range(max_workers):
+        q.put(None)
+        
+    for t in threads:
+        t.join() # дожидаемся завершения потоков
+        print('{:<10}|Closed:{}'.format(
+            t.name, 
+            not t.is_alive())
+        )
+
 #---------------------------------
 # запуск сервера
 #---------------------------------   
@@ -448,11 +509,13 @@ def serve_forever(server,port,charset):
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.setblocking(0) # включаем неблокирующий режим для accept
     sock.bind((server, port))
-    sock.listen(5)
-
+    sock.listen(10)
+    
+    create_workers(max_workers=MAX_WORKERS)
+    
     try:
         while 1: 
-            time.sleep(0.1)
+            #time.sleep(0.1)
             try:
                 conn, addr = sock.accept()
                 print('-' * 10)
@@ -463,6 +526,8 @@ def serve_forever(server,port,charset):
             
             except KeyboardInterrupt:
                 print("Connected: Exit by Ctrl+C")
+                stop_workers(MAX_WORKERS)
+                
                 if conn:
                     conn.close()
                 sys.exit(0)
@@ -471,10 +536,9 @@ def serve_forever(server,port,charset):
                 try:
                     # включаем неблокирующий режим для recv
                     conn.setblocking(0)
-                    data = read_data(conn, addr)
-                    # данные пришли - обрабатываем
-                    if data:
-                        parse_request(conn,data)    
+                    #work(conn,addr)
+                    q.put((conn,addr)) 
+                    
                 # перехватываем внутренние ошибки сервера
                 except Exception as err:
                     trace = traceback.format_exc()
@@ -493,11 +557,12 @@ def serve_forever(server,port,charset):
                                 charset=DEFAULT_CHARSET,
                                 data=answer)   
                 finally: 
-                    conn.close()
+                    pass
                 
     except KeyboardInterrupt:
         print("Main: Exit by Ctrl+C")        
-    
+        stop_workers(MAX_WORKERS) 
+        
     finally: 
         sock.close()
 
@@ -505,12 +570,13 @@ def serve_forever(server,port,charset):
 #--------------------------------------------------
 if __name__ == "__main__":
     CASCHE_DIRS = {}
-    HOST = SERVER,PORT = "localhost",8080
+    HOST = SERVER,PORT = "0.0.0.0",8080
     HOST = ":".join(map(str,HOST))
     # корневая директория, которая будет доступна по адресу http://localhost:8080
     ROOT = os.path.dirname(__file__)
     DEFAULT_CHARSET = "utf-8"
     MAX_AGE = 0
+    MAX_WORKERS = 50
     
     if not mimetypes.inited:
         mimetypes.init() 
