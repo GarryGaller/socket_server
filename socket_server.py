@@ -26,6 +26,7 @@ import re
 import hashlib
 import queue
 import threading
+import locale
 from datetime import datetime
 from string import Template
 from urllib.parse import quote,unquote
@@ -105,8 +106,8 @@ def read_file(filepath):
 # определение кодировки файла
 #---------------------------------
 def detect_encoding(filepath):
-    default_encoding = sys.getfilesystemencoding()
-    #default_enc = locale.getpreferredencoding()
+    #default_enc = sys.getfilesystemencoding()
+    default_enc = locale.getpreferredencoding()
     result = None
     detector = UniversalDetector()
     detector.reset()
@@ -115,7 +116,7 @@ def detect_encoding(filepath):
         detector.feed(line)
         if detector.done: break
     detector.close()
-    encoding = detector.result.get('encoding') or default_encoding
+    encoding = detector.result.get('encoding') or default_enc
     
     return encoding
 
@@ -509,13 +510,13 @@ def serve_forever(server,port,charset):
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.setblocking(0) # включаем неблокирующий режим для accept
     sock.bind((server, port))
-    sock.listen(10)
+    sock.listen(DEPTH_QUEUE_CONNECTIONS)
     
     create_workers(max_workers=MAX_WORKERS)
     
     try:
         while 1: 
-            #time.sleep(0.1)
+            #time.sleep(0.01)
             try:
                 conn, addr = sock.accept()
                 print('-' * 10)
@@ -576,7 +577,8 @@ if __name__ == "__main__":
     ROOT = os.path.dirname(__file__)
     DEFAULT_CHARSET = "utf-8"
     MAX_AGE = 0
-    MAX_WORKERS = 50
+    MAX_WORKERS = 100
+    DEPTH_QUEUE_CONNECTIONS = 10
     
     if not mimetypes.inited:
         mimetypes.init() 
